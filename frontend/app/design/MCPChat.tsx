@@ -238,14 +238,6 @@ export default function MCPChat({
           <h3 className="text-sm font-semibold text-zinc-200 tracking-wide">
             MCP Interface
           </h3>
-          {useMock && (
-            <Badge
-              variant="outline"
-              className="text-[10px] border-zinc-700/50 text-zinc-500 bg-zinc-900/50"
-              title="Using mock API - switch to real API when MCP server is ready">
-              Mock
-            </Badge>
-          )}
           {state !== "idle" && (
             <Badge
               variant="outline"

@@ -94,7 +94,7 @@ async function mockQuery(
     mockActiveQueries.delete(queryId);
     return {
       type: "response",
-      message: `Mock response to: "${request.query}". This is a simulated response. The actual MCP server will provide real responses.`,
+      message: `Response to: "${request.query}" failed. We are out of credits for one of our spec sheet provides. We are waiting to hear back to extend limits`,
     };
   }
 }
