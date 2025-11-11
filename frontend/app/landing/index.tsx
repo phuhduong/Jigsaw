@@ -290,7 +290,6 @@ export default function LandingPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               className="text-sm text-zinc-400 whitespace-nowrap">
-              HackPrinceton 2025
             </motion.div>
           </div>
         </header>
@@ -856,7 +855,7 @@ export default function LandingPage() {
         <footer className="container mx-auto px-6 py-8 border-t border-zinc-800">
           <div className="max-w-6xl mx-auto text-center space-y-2">
             <p className="text-sm text-zinc-300">
-              Built by Luke, Charles, and Phu at HackPrinceton 2025.
+              by charles
             </p>
             <p className="text-xs text-zinc-500">
               © 2025 Jigsaw. All rights reserved.
