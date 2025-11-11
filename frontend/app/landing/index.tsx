@@ -34,7 +34,7 @@ import solutionImage from "~/images/solution.png";
 const PLACEHOLDER_PROMPT =
   "Make me a temperature and humidity sensor with WiFi and Bluetooth powered by USB-C (5V) for consumer use.";
 const RATE_LIMIT_ERROR_MESSAGE =
-  "Error: Rate limited by one of our providers. We are waiting to hear back to extend limits.";
+  "Error: Rate limited by one of our providers. We are waiting to hear back to extend limits. Please try with the example prompt since the results are cached.";
 const normalizePrompt = (value: string) =>
   value.replace(/\s+/g, " ").trim().toLowerCase();
 const PLACEHOLDER_NORMALIZED = normalizePrompt(PLACEHOLDER_PROMPT);
