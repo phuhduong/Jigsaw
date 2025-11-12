@@ -1,18 +1,11 @@
-/**
- * Component Analysis MCP API Contract
- *
- * This file defines the API contract for component analysis with the MCP server.
- * Real API implementations are active by default. Mock implementations are available for testing.
- */
-
 import type { PartObject } from "./types";
 
 export interface ComponentReasoning {
   componentId: string;
   componentName: string;
-  reasoning: string; // Snippet of reasoning from MCP agent
+  reasoning: string;
   status: "reasoning" | "selected" | "validated";
-  hierarchyLevel?: number; // Position in the hierarchy
+  hierarchyLevel?: number;
 }
 
 export interface ComponentSelection {
@@ -34,62 +27,29 @@ export interface ComponentAnalysisResponse {
   position?: ComponentSelection["position"];
   message?: string;
   hierarchyLevel?: number;
-  queryId?: string; // Required when type is "context_request" - used to resume analysis
-  requestId?: string; // Alternative field name for queryId
+  queryId?: string;
+  requestId?: string;
 }
 
 export interface ComponentAnalysisConfig {
   baseUrl: string;
-  analysisEndpoint: string; // Default: "/mcp/component-analysis"
+  analysisEndpoint: string;
   timeout?: number;
 }
 
 const defaultConfig: ComponentAnalysisConfig = {
   baseUrl: "http://localhost:3001",
   analysisEndpoint: "/mcp/component-analysis",
-  timeout: 60000, // 60 seconds for long-running analysis
+  timeout: 60000,
 };
 
-/**
- * MOCK IMPLEMENTATION - Replace with real API calls when MCP server is ready
- *
- * TESTING FEATURES:
- * - Component-specific reasoning snippets
- * - Realistic part data with proper specs
- * - Console logging for debugging
- * - Configurable timing for testing
- */
-
-// Mock configuration for testing
-// You can modify these values to adjust the mock behavior
 export const MOCK_CONFIG = {
-  enableLogging: true, // Set to false to disable console logs
-  reasoningDelay: 2000, // Base delay between reasoning snippets (ms) - reduce for faster testing
-  selectionDelay: 5000, // Delay before selection (ms) - reduce for faster testing
-  reasoningCount: { min: 2, max: 4 }, // Number of reasoning snippets per component
+  enableLogging: false,
+  reasoningDelay: 2000,
+  selectionDelay: 5000,
+  reasoningCount: { min: 2, max: 4 },
 };
 
-/**
- * TESTING UTILITIES
- *
- * To test the mock API:
- * 1. Open browser console (F12)
- * 2. Click "Start Analysis" button in the design interface
- * 3. Watch console logs for detailed reasoning process
- * 4. Observe UI updates in real-time
- *
- * To speed up testing:
- * - Set MOCK_CONFIG.reasoningDelay to 200-300ms
- * - Set MOCK_CONFIG.selectionDelay to 300-400ms
- *
- * To see more reasoning:
- * - Increase MOCK_CONFIG.reasoningCount.max to 5-6
- *
- * To disable console logs:
- * - Set MOCK_CONFIG.enableLogging to false
- */
-
-// Mock components with hierarchy and specific reasoning
 const mockComponents = [
   {
     id: "mcu",
@@ -316,20 +276,7 @@ async function mockStartAnalysis(
   contextQueryId?: string,
   context?: string
 ): Promise<void> {
-  if (MOCK_CONFIG.enableLogging) {
-    console.group("🧪 Mock Component Analysis - Starting");
-    console.log("Query:", query);
-    if (contextQueryId && context) {
-      console.log("Resuming with context:", context);
-    }
-    console.log("Components to analyze:", mockComponents.length);
-  }
-
-  // Simulate context request (for testing - can be triggered randomly or at specific points)
-  // In real implementation, this would come from the MCP server
-  if (!contextQueryId && Math.random() < 0.1 && MOCK_CONFIG.enableLogging) {
-    // 10% chance to request context (for testing)
-    // In production, this would be determined by the MCP server
+  if (!contextQueryId && Math.random() < 0.1) {
     const testQueryId = `query_${Date.now()}`;
     onUpdate({
       type: "context_request",
@@ -337,23 +284,15 @@ async function mockStartAnalysis(
       message:
         "I need more information about your power requirements. What is your target voltage range?",
     });
-    return; // Pause until context is provided
+    return;
   }
 
-  // Simulate hierarchical reasoning process
   for (let i = 0; i < mockComponents.length; i++) {
-    // Check if cancelled before processing each component
     if (signal?.aborted) {
       throw new Error("Analysis cancelled");
     }
 
     const component = mockComponents[i];
-
-    if (MOCK_CONFIG.enableLogging) {
-      console.group(`📦 ${component.name} (Level ${component.hierarchy})`);
-    }
-
-    // Send reasoning updates with component-specific snippets
     const reasoningCount =
       Math.floor(
         Math.random() *
@@ -361,14 +300,12 @@ async function mockStartAnalysis(
       ) + MOCK_CONFIG.reasoningCount.min;
 
     for (let j = 0; j < reasoningCount; j++) {
-      // Check if cancelled
       if (signal?.aborted) {
         throw new Error("Analysis cancelled");
       }
 
       await waitWithAbort(MOCK_CONFIG.reasoningDelay, signal);
 
-      // Check again after delay
       if (signal?.aborted) {
         throw new Error("Analysis cancelled");
       }
@@ -379,13 +316,6 @@ async function mockStartAnalysis(
           Math.floor(Math.random() * component.reasoning.length)
         ];
 
-      if (MOCK_CONFIG.enableLogging) {
-        console.log(
-          `💭 Reasoning ${j + 1}/${reasoningCount}:`,
-          reasoningSnippet
-        );
-      }
-
       onUpdate({
         type: "reasoning",
         componentId: component.id,
@@ -395,33 +325,14 @@ async function mockStartAnalysis(
       });
     }
 
-    // Send selection
-    // Check if cancelled
     if (signal?.aborted) {
       throw new Error("Analysis cancelled");
     }
 
     await waitWithAbort(MOCK_CONFIG.selectionDelay, signal);
 
-    // Check again after delay
     if (signal?.aborted) {
       throw new Error("Analysis cancelled");
-    }
-
-    if (MOCK_CONFIG.enableLogging) {
-      console.log("✅ Selected:", component.partData.mpn);
-      console.log("   Manufacturer:", component.partData.manufacturer);
-      console.log(
-        "   Price:",
-        component.partData.currency || "USD",
-        component.partData.price.toFixed(2)
-      );
-      if (
-        component.partData.interfaces &&
-        component.partData.interfaces.length > 0
-      ) {
-        console.log("   Interfaces:", component.partData.interfaces.join(", "));
-      }
     }
 
     onUpdate({
@@ -432,28 +343,16 @@ async function mockStartAnalysis(
       position: component.position,
       hierarchyLevel: component.hierarchy,
     });
-
-    if (MOCK_CONFIG.enableLogging) {
-      console.groupEnd();
-    }
   }
 
-  // Send completion
-  // Check if cancelled
   if (signal?.aborted) {
     throw new Error("Analysis cancelled");
   }
 
   await waitWithAbort(500, signal);
 
-  // Check again after delay
   if (signal?.aborted) {
     throw new Error("Analysis cancelled");
-  }
-
-  if (MOCK_CONFIG.enableLogging) {
-    console.log("✨ Analysis complete!");
-    console.groupEnd();
   }
 
   onUpdate({
@@ -463,17 +362,6 @@ async function mockStartAnalysis(
   });
 }
 
-/**
- * REAL API IMPLEMENTATION (commented out - uncomment when MCP server is ready)
- */
-
-/**
- * REAL API IMPLEMENTATION - Matches backend requirements:
- * - Endpoint: POST /mcp/component-analysis
- * - SSE format: data: <JSON>\n\n
- * - partData uses PartObject format from types.ts
- * - Context resume via optional contextQueryId and context parameters
- */
 async function realStartAnalysis(
   query: string,
   config: ComponentAnalysisConfig,
@@ -490,7 +378,6 @@ async function realStartAnalysis(
     : null;
 
   try {
-    // Build request body with optional context parameters
     const requestBody: {
       query: string;
       contextQueryId?: string;
@@ -503,10 +390,6 @@ async function realStartAnalysis(
     }
 
     const url = `${config.baseUrl}${config.analysisEndpoint}`;
-    console.log(`[Component Analysis] Starting analysis at: ${url}`);
-    console.log(`[Component Analysis] Query:`, query.substring(0, 100) + "...");
-
-    // POST to /mcp/component-analysis endpoint
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -520,23 +403,9 @@ async function realStartAnalysis(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      console.error(
-        `[Component Analysis] HTTP error ${response.status}:`,
-        errorText
-      );
-      throw new Error(
-        `HTTP error! status: ${response.status}, message: ${errorText}`
-      );
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
-    // Verify Content-Type is text/event-stream for SSE
-    const contentType = response.headers.get("Content-Type");
-    if (!contentType?.includes("text/event-stream")) {
-      console.warn("Expected text/event-stream, got:", contentType);
-    }
-
-    // Parse Server-Sent Events stream
-    // Format: data: <JSON>\n\n
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
@@ -550,43 +419,32 @@ async function realStartAnalysis(
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Decode chunk and add to buffer
       buffer += decoder.decode(value, { stream: true });
 
-      // Process complete SSE messages (ending with \n\n)
       let eventEndIndex;
       while ((eventEndIndex = buffer.indexOf("\n\n")) !== -1) {
         const eventText = buffer.slice(0, eventEndIndex);
         buffer = buffer.slice(eventEndIndex + 2);
 
-        // Find data line (format: data: <JSON>)
         const dataLine = eventText
           .split("\n")
           .find((line) => line.startsWith("data: "));
         if (dataLine) {
           try {
-            // Extract JSON after "data: "
-            const jsonText = dataLine.slice(6); // Remove "data: " prefix
+            const jsonText = dataLine.slice(6);
             const data: ComponentAnalysisResponse = JSON.parse(jsonText);
             onUpdate(data);
 
-            // Stop on complete or error
             if (data.type === "complete" || data.type === "error") {
               return;
             }
           } catch (e) {
-            console.error(
-              "Failed to parse SSE data:",
-              e,
-              "Raw line:",
-              dataLine
-            );
+            console.error("Failed to parse SSE data:", e);
           }
         }
       }
     }
 
-    // Process any remaining buffer
     if (buffer.trim()) {
       const dataLine = buffer
         .split("\n")
@@ -606,7 +464,6 @@ async function realStartAnalysis(
     if (error.name === "AbortError") {
       throw new Error("Analysis timeout or cancelled");
     }
-    // Enhanced error logging for fetch failures
     if (
       error.message?.includes("Failed to fetch") ||
       error.name === "TypeError"
@@ -616,33 +473,10 @@ async function realStartAnalysis(
         error.message?.includes("Connection refused");
 
       if (isConnectionRefused) {
-        console.error(
-          `[Component Analysis] ❌ Connection Refused - Backend server is not running!`
-        );
-        console.error(
-          `[Component Analysis] The backend at ${config.baseUrl} is not accessible.`
-        );
-        console.error(`[Component Analysis] Action required:`);
-        console.error(`  1. Make sure your MCP backend server is running`);
-        console.error(
-          `  2. Check if it's running on a different port (not 3001)`
-        );
-        console.error(`  3. Update VITE_MCP_SERVER_URL in .env if needed`);
-        console.error(
-          `  4. Check backend logs to see what port it's actually using`
-        );
         throw new Error(
           `Backend server at ${config.baseUrl} is not running. Please start your MCP backend server.`
         );
       } else {
-        console.error(
-          `[Component Analysis] Network error - Failed to connect to ${config.baseUrl}${config.analysisEndpoint}`
-        );
-        console.error(`[Component Analysis] Possible causes:`);
-        console.error(`  - Backend server is not running`);
-        console.error(`  - CORS is not configured on the backend`);
-        console.error(`  - Wrong URL (current: ${config.baseUrl})`);
-        console.error(`  - Network connectivity issues`);
         throw new Error(
           `Failed to connect to MCP server at ${config.baseUrl}. Make sure the backend is running and CORS is configured.`
         );
@@ -652,9 +486,6 @@ async function realStartAnalysis(
   }
 }
 
-/**
- * Component Analysis API Service
- */
 class ComponentAnalysisService {
   private config: ComponentAnalysisConfig;
   private useMock: boolean;
@@ -668,15 +499,6 @@ class ComponentAnalysisService {
     this.useMock = useMock;
   }
 
-  /**
-   * Start component analysis with real-time updates
-   *
-   * @param query - The design query/requirements
-   * @param onUpdate - Callback function for receiving updates
-   * @param signal - Optional AbortSignal for cancelling
-   * @param contextQueryId - Optional query ID if resuming after context was provided
-   * @param context - Optional context string if resuming after context was provided
-   */
   async startAnalysis(
     query: string,
     onUpdate: (update: ComponentAnalysisResponse) => void,
@@ -684,7 +506,6 @@ class ComponentAnalysisService {
     contextQueryId?: string,
     context?: string
   ): Promise<void> {
-    // Cancel any existing analysis
     if (this.currentAnalysis) {
       this.currentAnalysis.abort();
     }
@@ -704,7 +525,6 @@ class ComponentAnalysisService {
           context
         );
       } else {
-        // Real API implementation - matches backend requirements
         await realStartAnalysis(
           query,
           this.config,
@@ -734,9 +554,6 @@ class ComponentAnalysisService {
     }
   }
 
-  /**
-   * Cancel current analysis
-   */
   cancelAnalysis(): void {
     if (this.currentAnalysis) {
       this.currentAnalysis.abort();
@@ -744,22 +561,15 @@ class ComponentAnalysisService {
     }
   }
 
-  /**
-   * Update the API configuration
-   */
   updateConfig(config: Partial<ComponentAnalysisConfig>) {
     this.config = { ...this.config, ...config };
   }
 
-  /**
-   * Switch between mock and real API
-   */
   setUseMock(useMock: boolean) {
     this.useMock = useMock;
   }
 }
 
-// Export singleton instance
 export const componentAnalysisApi = new ComponentAnalysisService(
   {
     baseUrl:
@@ -768,52 +578,7 @@ export const componentAnalysisApi = new ComponentAnalysisService(
           "http://localhost:3001"
         : "http://localhost:3001",
   },
-  true // Using real MCP server
+  false
 );
 
-// Export the class for creating custom instances
 export { ComponentAnalysisService };
-
-/**
- * TESTING HELPER - Available in browser console
- *
- * Usage in browser console:
- *   window.testComponentAnalysis("Temperature sensor with WiFi")
- *
- * This will run a quick test of the mock API and log results to console.
- */
-if (typeof window !== "undefined") {
-  (window as any).testComponentAnalysis = (query: string = "Test query") => {
-    console.log("🧪 Running test component analysis...");
-    console.log("Query:", query);
-
-    let updateCount = 0;
-    const updates: ComponentAnalysisResponse[] = [];
-
-    componentAnalysisApi
-      .startAnalysis(
-        query,
-        (update) => {
-          updateCount++;
-          updates.push(update);
-          console.log(`Update ${updateCount}:`, update);
-        },
-        undefined
-      )
-      .then(() => {
-        console.log(`✅ Test complete! Received ${updateCount} updates.`);
-        console.log("Summary:", {
-          reasoning: updates.filter((u) => u.type === "reasoning").length,
-          selections: updates.filter((u) => u.type === "selection").length,
-          complete: updates.filter((u) => u.type === "complete").length,
-        });
-      })
-      .catch((error) => {
-        console.error("❌ Test failed:", error);
-      });
-  };
-
-  console.log(
-    "💡 Testing helper available! Type 'window.testComponentAnalysis(\"your query\")' in console to test."
-  );
-}

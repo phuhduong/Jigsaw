@@ -19,16 +19,16 @@ interface Message {
 
 interface MCPChatProps {
   mcpServerUrl?: string;
-  useMock?: boolean; // Allow switching between mock and real API
-  onQuerySent?: (query: string) => void; // Callback when query is sent (starts analysis)
-  onContextRequested?: () => void; // Callback when context is requested (pauses analysis)
-  onContextProvided?: () => void; // Callback when context is provided (resumes analysis)
-  onQueryKilled?: () => void; // Callback when query is killed/cancelled (pauses analysis)
+  useMock?: boolean;
+  onQuerySent?: (query: string) => void;
+  onContextRequested?: () => void;
+  onContextProvided?: () => void;
+  onQueryKilled?: () => void;
 }
 
 export default function MCPChat({
   mcpServerUrl,
-  useMock = true,
+  useMock = false,
   onQuerySent,
   onContextRequested,
   onContextProvided,
@@ -43,7 +43,6 @@ export default function MCPChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize API service
   useEffect(() => {
     if (mcpServerUrl) {
       mcpApi.updateConfig({ baseUrl: mcpServerUrl });
@@ -51,7 +50,6 @@ export default function MCPChat({
     mcpApi.setUseMock(useMock);
   }, [mcpServerUrl, useMock]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -67,20 +65,17 @@ export default function MCPChat({
   };
 
   const killQuery = () => {
-    // Abort any ongoing requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
 
-    // Reset all state
     setState("idle");
     setContextRequest(null);
     setError(null);
-    setMessages([]); // Clear all messages
-    setInput(""); // Clear input
+    setMessages([]);
+    setInput("");
 
-    // Notify parent to reset everything
     if (onQueryKilled) {
       onQueryKilled();
     }
@@ -94,13 +89,10 @@ export default function MCPChat({
     setContextRequest(null);
     addMessage("user", `Context provided: ${contextResponse}`);
 
-    // Notify parent to resume analysis
-    // Pass the context and queryId so component analysis can resume
     if (onContextProvided) {
       onContextProvided();
     }
 
-    // Send the context response back to MCP server using API service
     try {
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -120,7 +112,6 @@ export default function MCPChat({
           data.message || "The server is requesting additional context."
         );
 
-        // Notify parent to pause analysis again
         if (onContextRequested) {
           onContextRequested();
         }
@@ -158,12 +149,10 @@ export default function MCPChat({
     addMessage("user", query);
     setInput("");
 
-    // Notify parent to start analysis
     if (onQuerySent) {
       onQuerySent(query);
     }
 
-    // Send query to MCP server using API service
     try {
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -179,7 +168,6 @@ export default function MCPChat({
           data.message || "The server is requesting additional context."
         );
 
-        // Notify parent to pause analysis
         if (onContextRequested) {
           onContextRequested();
         }
@@ -212,7 +200,6 @@ export default function MCPChat({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (state === "waiting_for_context" && contextRequest) {
-      // If we're waiting for context, treat the input as context response
       sendContextResponse(input.trim());
     } else {
       sendQuery(input.trim());
@@ -228,7 +215,6 @@ export default function MCPChat({
 
   return (
     <div className="w-full h-[20vh] min-h-[280px] max-h-[400px] bg-gradient-to-b from-zinc-900 via-zinc-950 to-zinc-900 border-t border-zinc-800/50 flex flex-col overflow-hidden backdrop-blur-xl">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-zinc-800/50 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -265,7 +251,6 @@ export default function MCPChat({
         </Button>
       </div>
 
-      {/* Messages */}
       <ScrollArea className="flex-1 relative min-h-0">
         <div className="p-4 space-y-5 relative">
           {messages.length === 0 && (
@@ -352,7 +337,6 @@ export default function MCPChat({
         </div>
       </ScrollArea>
 
-      {/* Context Request Banner */}
       {state === "waiting_for_context" && contextRequest && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
@@ -369,7 +353,6 @@ export default function MCPChat({
         </motion.div>
       )}
 
-      {/* Input Area */}
       <form
         onSubmit={handleSubmit}
         className="p-4 border-t border-zinc-800/50 bg-zinc-900/30 backdrop-blur-sm flex-shrink-0">
