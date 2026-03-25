@@ -1,62 +1,62 @@
 ![Jigsaw Logo](assets/logo_w_text.png)
 
-**From natural language to complete PCB design in minutes, not hours.**
+**From natural language to a verified component list in minutes.**
 
-[View Demo](#demo) • [Pitch Deck](https://www.figma.com/slides/94eWyD99wBcK8kr5nobDi2/Jigsaw?node-id=1-510&t=PplOcCx70slVACQC-1) • [Installation](#installation)
-
----
-
-## The Problem
-
-Hardware engineers spend days—sometimes weeks—manually researching components, cross-referencing datasheets, and building Bill of Materials. What should be a creative design process becomes a tedious research task.
-
-**The pain points:**
-
-- Parsing 50+ page datasheets to verify compatibility
-- Comparing pricing and availability across multiple suppliers
-- Cross-referencing voltage requirements, pin configurations, and interface protocols
-- Building BOMs from scratch, prone to human error
-
-This is work that should be automated.
+[Devpost](https://devpost.com/software/jigsaw-make-your-pcb-board-click) • [Pitch Deck](https://www.figma.com/slides/94eWyD99wBcK8kr5nobDi2/Jigsaw?node-id=1-510&t=PplOcCx70slVACQC-1) • [Installation](#installation)
 
 ---
 
-## Where We Fit
-
-Jigsaw sits at the intersection of AI-powered design automation and hardware engineering. We're not replacing engineers—we're amplifying their capabilities by handling the research and validation work, so they can focus on innovation.
+Jigsaw automates PCB component selection. Describe your circuit in natural language and it searches DigiKey for real parts, checks voltage and interface compatibility, and generates a BOM with pricing.
 
 ---
 
-## Our Solution
+## Installation
 
-Jigsaw uses AI agents powered by Model Context Protocol to automate the entire PCB design workflow. Describe your circuit in natural language, and watch as our system:
+You'll need three things running: the MCP server (DigiKey), the backend (Flask + Gemini), and the frontend.
 
-1. **Analyzes requirements** and identifies components hierarchically
-2. **Searches suppliers** for optimal parts based on specs, pricing, and availability
-3. **Validates compatibility** across all components (voltage, interfaces, pin counts)
-4. **Generates complete BOM** with real-time pricing and specifications
+### Prerequisites
 
-You see the AI reason through each component selection in real-time, just like a senior hardware engineer would.
+- Python 3.11+
+- Node.js 18+ and Yarn
+- A free [Gemini API key](https://aistudio.google.com/apikey)
+- Free [DigiKey API credentials](https://developer.digikey.com/) (register an app to get a client ID and secret)
 
----
+### 1. MCP Server
 
-## Demo
+```bash
+cd mcp-server
+cp .env.template .env
+# Fill in DIGIKEY_CLIENT_ID and DIGIKEY_CLIENT_SECRET in .env
+npm install
+npm run build
+npm start
+```
 
-![Jigsaw Live Demo](assets/liveDemo.gif)
+The MCP server runs on `http://localhost:8080`.
 
-**[View Full Pitch Deck →](https://www.figma.com/slides/94eWyD99wBcK8kr5nobDi2/Jigsaw?node-id=1-510&t=PplOcCx70slVACQC-1)**
+### 2. Backend
 
----
+```bash
+cd backend
+cp .env.template .env
+# Fill in GEMINI_API_KEY in .env
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
 
-## How It Works
+The backend runs on `http://localhost:3001`.
 
-**Hierarchical Reasoning**
+### 3. Frontend
 
-AI analyzes components in logical order (MCU → Power → Sensors → Passives), ensuring compatibility at each step before proceeding. This mirrors how experienced engineers approach design.
+```bash
+cd frontend
+yarn install
+yarn dev
+```
 
-**Context-Aware Intelligence**
-
-When requirements are ambiguous, the AI asks clarifying questions. The system seamlessly pauses analysis, waits for context, then resumes, maintaining state throughout the conversation.
+Open `http://localhost:5173`.
 
 ---
 
@@ -64,4 +64,4 @@ When requirements are ambiguous, the AI asks clarifying questions. The system se
 
 **Charles Muehlberger** • **Luke Sanborn** • **Phu Duong**
 
-Built at **HackPrinceton Spring 2025**
+Built at **HackPrinceton Spring 2025** — Winner, Best Business + Enterprise Hack
