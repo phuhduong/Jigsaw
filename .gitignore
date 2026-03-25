@@ -1,0 +1,22 @@
+# IDE
+.vscode/
+.idea/
+
+# Claude / Cursor local settings
+.claude/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+*.env

@@ -10,7 +10,6 @@ export type {
 export {
   componentAnalysisApi,
   ComponentAnalysisService,
-  MOCK_CONFIG,
 } from "./componentAnalysisApi";
 export type {
   ComponentReasoning,
@@ -20,3 +19,4 @@ export type {
 } from "./componentAnalysisApi";
 
 export type { PartObject } from "./types";
+export { API_CONFIG } from "./config";

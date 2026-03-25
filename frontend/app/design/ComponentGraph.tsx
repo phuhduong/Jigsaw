@@ -136,24 +136,29 @@ export default function ComponentGraph({
     const handleUpdate = (update: ComponentAnalysisResponse) => {
       if (update.type === "reasoning" && update.componentId) {
         setComponents((prev: Map<string, ComponentNode>) => {
+          const existing = prev.get(update.componentId!);
+          if (existing && (existing.status === "selected" || existing.status === "validated")) {
+            return prev;
+          }
+
           const newMap = new Map(prev);
           
-          // Calculate hierarchy offset for appending new components
           const baseOffset = localHighestHierarchyRef.current >= 0 ? localHighestHierarchyRef.current + 1 : 0;
           const adjustedHierarchy = (update.hierarchyLevel || 0) + baseOffset;
           
-          const existing = newMap.get(update.componentId!) || {
+          const base = existing || {
             id: update.componentId!,
-            label: update.componentName || update.componentId,
+            label: update.componentName || update.componentId || "Component",
             status: "reasoning" as const,
             reasoning: [] as string[],
             hierarchyLevel: adjustedHierarchy,
           };
 
           newMap.set(update.componentId!, {
-            ...existing,
+            ...base,
+            label: base.label || update.componentName || update.componentId || "Component",
             status: "reasoning",
-            reasoning: [...existing.reasoning, update.reasoning || ""],
+            reasoning: [...base.reasoning, update.reasoning || ""],
             hierarchyLevel: adjustedHierarchy,
           });
 
@@ -178,7 +183,7 @@ export default function ComponentGraph({
           
           const existing = newMap.get(update.componentId!) || {
             id: update.componentId!,
-            label: update.componentName || update.componentId,
+            label: update.componentName || update.componentId || "Component",
             status: "pending" as const,
             reasoning: [] as string[],
             hierarchyLevel: adjustedHierarchy,
@@ -186,6 +191,7 @@ export default function ComponentGraph({
 
           const updated: ComponentNode = {
             ...existing,
+            label: existing.label || update.componentName || update.componentId || "Component",
             status: "selected" as const,
             partData: update.partData,
             hierarchyLevel: adjustedHierarchy,
@@ -207,6 +213,18 @@ export default function ComponentGraph({
           return newMap;
         });
       } else if (update.type === "complete") {
+        // Demote any components still stuck in "reasoning" so the spinner stops
+        setComponents((prev: Map<string, ComponentNode>) => {
+          let changed = false;
+          const newMap = new Map(prev);
+          for (const [id, node] of newMap.entries()) {
+            if (node.status === "reasoning") {
+              newMap.set(id, { ...node, status: "pending" });
+              changed = true;
+            }
+          }
+          return changed ? newMap : prev;
+        });
         setIsProcessing(false);
         isAnalysisRunningRef.current = false;
         if (onAnalysisComplete) {

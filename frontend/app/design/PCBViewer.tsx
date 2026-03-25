@@ -30,7 +30,7 @@ const getComponentColor = (componentId: string): string => {
   const colorMap: Record<string, string> = {
     mcu: "#10b981",
     power: "#3b82f6",
-    sensors: "#f59e0b",
+    sensor: "#f59e0b",
     memory: "#8b5cf6",
     antenna: "#ec4899",
     passives: "#6366f1",
@@ -49,7 +49,7 @@ const getComponentSize = (componentId: string): { w: number; h: number } => {
   const sizeMap: Record<string, { w: number; h: number }> = {
     mcu: { w: 60 * baseScale, h: 60 * baseScale },
     power: { w: 40 * baseScale, h: 30 * baseScale },
-    sensors: { w: 35 * baseScale, h: 35 * baseScale },
+    sensor: { w: 35 * baseScale, h: 35 * baseScale },
     memory: { w: 40 * baseScale, h: 30 * baseScale },
     antenna: { w: 25 * baseScale, h: 25 * baseScale },
     passives: { w: 20 * baseScale, h: 20 * baseScale },
@@ -95,12 +95,23 @@ function areVoltagesCompatible(voltage1?: string, voltage2?: string): boolean {
 }
 
 // Determine connections between components based on their relationships and part data
+// Detect a communication protocol from part description text
+function detectProtocol(description?: string): string | null {
+  if (!description) return null;
+  const desc = description.toUpperCase();
+  if (desc.includes("I2C")) return "I2C";
+  if (desc.includes("SPI")) return "SPI";
+  if (desc.includes("UART") || desc.includes("USART")) return "UART";
+  if (desc.includes("USB")) return "USB";
+  return null;
+}
+
 function determineConnections(components: PCBComponent[]): Connection[] {
   const connections: Connection[] = [];
   const mcu = components.find((c) => c.id.toLowerCase() === "mcu");
   const power = components.find((c) => c.id.toLowerCase() === "power");
   const connector = components.find((c) => c.id.toLowerCase() === "connector");
-  const sensors = components.find((c) => c.id.toLowerCase() === "sensors");
+  const sensor = components.find((c) => c.id.toLowerCase() === "sensor");
   const memory = components.find((c) => c.id.toLowerCase() === "memory");
   const antenna = components.find((c) => c.id.toLowerCase() === "antenna");
   const passives = components.find((c) => c.id.toLowerCase() === "passives");
@@ -108,114 +119,69 @@ function determineConnections(components: PCBComponent[]): Connection[] {
   if (!mcu) return connections;
 
   // Power connections: connector -> power -> MCU and other components
-  // Check voltage compatibility
   if (connector && power) {
-    const connectorVoltage = connector.partData?.voltage;
-    const powerInputVoltage = power.partData?.voltage?.split(",")[0]?.trim(); // Get input voltage
-    if (areVoltagesCompatible(connectorVoltage, powerInputVoltage)) {
-      connections.push({ from: connector.id, to: power.id, type: "power" });
-    }
+    connections.push({ from: connector.id, to: power.id, type: "power" });
   }
-  
+
   if (power && mcu) {
-    const powerOutputVoltage = power.partData?.voltage?.split(",")[1]?.trim() || power.partData?.voltage; // Get output voltage
-    const mcuVoltage = mcu.partData?.voltage;
-    if (areVoltagesCompatible(powerOutputVoltage, mcuVoltage)) {
-      connections.push({ from: power.id, to: mcu.id, type: "power" });
-    }
+    connections.push({ from: power.id, to: mcu.id, type: "power" });
   }
-  
-  if (power && sensors) {
-    const powerOutputVoltage = power.partData?.voltage?.split(",")[1]?.trim() || power.partData?.voltage;
-    const sensorVoltage = sensors.partData?.voltage;
-    if (areVoltagesCompatible(powerOutputVoltage, sensorVoltage)) {
-      connections.push({ from: power.id, to: sensors.id, type: "power" });
-    }
+
+  if (power && sensor) {
+    connections.push({ from: power.id, to: sensor.id, type: "power" });
   }
-  
+
   if (power && memory) {
-    const powerOutputVoltage = power.partData?.voltage?.split(",")[1]?.trim() || power.partData?.voltage;
-    const memoryVoltage = memory.partData?.voltage;
-    if (areVoltagesCompatible(powerOutputVoltage, memoryVoltage)) {
-      connections.push({ from: power.id, to: memory.id, type: "power" });
-    }
+    connections.push({ from: power.id, to: memory.id, type: "power" });
   }
 
-  // Data/Communication connections - check for matching interfaces
-  if (mcu && sensors) {
-    const mcuInterfaces = mcu.partData?.interfaces || [];
-    const sensorInterfaces = sensors.partData?.interfaces || [];
-    
-    // Find common interfaces
-    const commonInterfaces = mcuInterfaces.filter((iface: string) => 
-      sensorInterfaces.some((siface: string) => 
-        siface.toLowerCase().includes(iface.toLowerCase()) || 
-        iface.toLowerCase().includes(siface.toLowerCase())
-      )
-    );
-    
-    if (commonInterfaces.length > 0) {
-      const protocol = commonInterfaces[0]; // Use first common interface
-      connections.push({ from: mcu.id, to: sensors.id, type: "data", protocol });
-    }
+  // Data connections -- detect protocol from description as interfaces field is not populated
+  if (mcu && sensor) {
+    const protocol =
+      detectProtocol(sensor.partData?.description) ||
+      detectProtocol(mcu.partData?.description) ||
+      "I2C";
+    connections.push({ from: mcu.id, to: sensor.id, type: "data", protocol });
   }
-  
+
   if (mcu && memory) {
-    const mcuInterfaces = mcu.partData?.interfaces || [];
-    const memoryInterfaces = memory.partData?.interfaces || [];
-    
-    const commonInterfaces = mcuInterfaces.filter((iface: string) => 
-      memoryInterfaces.some((miface: string) => 
-        miface.toLowerCase().includes(iface.toLowerCase()) || 
-        iface.toLowerCase().includes(miface.toLowerCase())
-      )
-    );
-    
-    if (commonInterfaces.length > 0) {
-      const protocol = commonInterfaces[0];
-      connections.push({ from: mcu.id, to: memory.id, type: "data", protocol });
-    }
+    const protocol =
+      detectProtocol(memory.partData?.description) ||
+      detectProtocol(mcu.partData?.description) ||
+      "SPI";
+    connections.push({ from: mcu.id, to: memory.id, type: "data", protocol });
   }
 
-  // USB connection: connector -> MCU (check for USB interface)
+  // USB data connection: connector -> MCU
   if (connector && mcu) {
-    const connectorInterfaces = connector.partData?.interfaces || [];
-    const mcuInterfaces = mcu.partData?.interfaces || [];
-    
-    const hasUSB = connectorInterfaces.some((iface: string) => 
-      iface.toLowerCase().includes("usb")
-    ) && mcuInterfaces.some((iface: string) => 
-      iface.toLowerCase().includes("usb")
-    );
-    
-    if (hasUSB) {
+    const connDesc = (connector.partData?.description || "").toUpperCase();
+    const mcuDesc = (mcu.partData?.description || "").toUpperCase();
+    if (connDesc.includes("USB") || mcuDesc.includes("USB")) {
       connections.push({ from: connector.id, to: mcu.id, type: "data", protocol: "USB" });
     }
   }
 
-  // RF connection: antenna -> MCU (check for WiFi/Bluetooth interfaces)
+  // RF connection: antenna -> MCU
   if (antenna && mcu) {
-    const mcuInterfaces = mcu.partData?.interfaces || [];
-    const hasRF = mcuInterfaces.some((iface: string) => 
-      iface.toLowerCase().includes("wifi") || 
-      iface.toLowerCase().includes("bluetooth") ||
-      iface.toLowerCase().includes("rf")
-    );
-    
-    if (hasRF) {
-      connections.push({ from: antenna.id, to: mcu.id, type: "rf" });
+    connections.push({ from: antenna.id, to: mcu.id, type: "rf" });
+  }
+
+  // MCU has WiFi/BT built-in (e.g. ESP32) -- draw RF self-loop indicator via power line
+  if (!antenna && mcu) {
+    const mcuDesc = (mcu.partData?.description || "").toUpperCase();
+    if (mcuDesc.includes("WIFI") || mcuDesc.includes("BLUETOOTH") || mcuDesc.includes("ESP32")) {
+      // No external antenna component; nothing extra to draw
     }
   }
 
   // Passives connect to power rails (decoupling capacitors)
-  // Connect to components that need power
-  const powerConsumingComponents = [mcu, sensors, memory].filter(Boolean);
+  const powerConsumingComponents = [mcu, sensor, memory].filter(Boolean);
   powerConsumingComponents.forEach((comp) => {
     if (passives && comp) {
       connections.push({ from: passives.id, to: comp.id, type: "power" });
     }
   });
-  
+
   if (passives && power) {
     connections.push({ from: passives.id, to: power.id, type: "power" });
   }

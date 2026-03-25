@@ -1,0 +1,183 @@
+"""
+Component search tool definition.
+Calls the DigiKey MCP server via HTTP for real component data.
+"""
+
+import os
+import json
+import requests
+
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8080")
+
+# Tool schema for Gemini function calling
+SEARCH_COMPONENTS_TOOL = {
+    "name": "search_components",
+    "description": (
+        "Search for electronic components by specification. Returns a list of compatible parts "
+        "matching the given requirements. Use this to find specific components like microcontrollers, "
+        "sensors, power regulators, connectors, passives, etc."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query for the component (e.g. 'ESP32 WiFi Bluetooth microcontroller 3.3V')",
+            },
+            "category": {
+                "type": "string",
+                "description": "Component category: mcu, power, sensor, memory, antenna, connector, passive, or other",
+                "enum": ["mcu", "power", "sensor", "memory", "antenna", "connector", "passive", "other"],
+            },
+            "specifications": {
+                "type": "object",
+                "description": "Key specifications to match",
+                "properties": {
+                    "voltage": {"type": "string", "description": "Operating voltage range"},
+                    "interface": {"type": "string", "description": "Communication interface (I2C, SPI, UART, etc.)"},
+                    "package": {"type": "string", "description": "Package type (SOT-23, QFN, etc.)"},
+                },
+            },
+        },
+        "required": ["query", "category"],
+    },
+}
+
+# MCP session ID cached for reuse across calls
+_mcp_session_id: str | None = None
+
+
+def _init_mcp_session() -> str:
+    """Initialize an MCP session and return the session ID."""
+    global _mcp_session_id
+    if _mcp_session_id:
+        return _mcp_session_id
+
+    # Send an initialize request to create a session
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "jigsaw-backend", "version": "0.1.0"},
+        },
+    }
+
+    resp = requests.post(
+        f"{MCP_SERVER_URL}/mcp",
+        json=payload,
+        headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream"},
+        timeout=10,
+    )
+    resp.raise_for_status()
+
+    session_id = resp.headers.get("mcp-session-id")
+    if session_id:
+        _mcp_session_id = session_id
+
+    # Send initialized notification
+    notif = {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized",
+    }
+    requests.post(
+        f"{MCP_SERVER_URL}/mcp",
+        json=notif,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            **({"mcp-session-id": _mcp_session_id} if _mcp_session_id else {}),
+        },
+        timeout=10,
+    )
+
+    return _mcp_session_id or ""
+
+
+def search_components(query: str, category: str, specifications: dict | None = None) -> list[dict]:
+    """
+    Search for components by calling the DigiKey MCP server.
+    Falls back to an error message if the MCP server is unreachable.
+    """
+    try:
+        session_id = _init_mcp_session()
+
+        # Build the search query — append category and specs for better results
+        search_query = query
+        if category and category != "other":
+            search_query = f"{category} {query}"
+        if specifications:
+            spec_parts = [f"{v}" for v in specifications.values() if v]
+            if spec_parts:
+                search_query += " " + " ".join(spec_parts)
+
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "search_components",
+                "arguments": {
+                    "query": search_query,
+                    "limit": 5,
+                },
+            },
+        }
+
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if session_id:
+            headers["mcp-session-id"] = session_id
+
+        resp = requests.post(
+            f"{MCP_SERVER_URL}/mcp",
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+
+        # Parse MCP response — may be JSON or SSE
+        body = resp.text.strip()
+
+        # Handle SSE format: lines starting with "event:" and "data:"
+        if body.startswith("event:"):
+            for line in body.split("\n"):
+                if line.startswith("data:"):
+                    data_str = line[len("data:"):].strip()
+                    if data_str:
+                        data = json.loads(data_str)
+                        if "result" in data:
+                            content = data["result"].get("content", [])
+                            for item in content:
+                                if item.get("type") == "text":
+                                    return json.loads(item["text"])
+            return []
+
+        # Handle plain JSON response
+        data = json.loads(body)
+        if "result" in data:
+            content = data["result"].get("content", [])
+            for item in content:
+                if item.get("type") == "text":
+                    return json.loads(item["text"])
+
+        return []
+
+    except Exception as e:
+        print(f"MCP server error: {e}")
+        # Return empty list with error info so the model can inform the user
+        return [
+            {
+                "mpn": "ERROR",
+                "manufacturer": "N/A",
+                "description": f"Component search unavailable: {str(e)}",
+                "price": 0,
+                "currency": "USD",
+                "quantity": 0,
+            }
+        ]

@@ -411,7 +411,6 @@ export default function DesignInterface({
           {/* MCP Chat - fixed height at bottom */}
           <div className="flex-shrink-0 border-t border-zinc-800 overflow-hidden">
             <MCPChat
-              useMock={true}
               onQuerySent={handleQuerySent}
               onContextRequested={handleChatContextRequested}
               onContextProvided={handleChatContextProvided}

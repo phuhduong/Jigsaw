@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Badge } from "../components/ui/badge";
-import { mcpApi } from "../services/mcp";
+import { mcpApi, API_CONFIG } from "../services/mcp";
 import JigsawIcon from "./JigsawIcon";
 
 type ChatState = "idle" | "waiting" | "waiting_for_context" | "error";
@@ -19,7 +19,6 @@ interface Message {
 
 interface MCPChatProps {
   mcpServerUrl?: string;
-  useMock?: boolean;
   onQuerySent?: (query: string) => void;
   onContextRequested?: () => void;
   onContextProvided?: () => void;
@@ -28,7 +27,6 @@ interface MCPChatProps {
 
 export default function MCPChat({
   mcpServerUrl,
-  useMock = false,
   onQuerySent,
   onContextRequested,
   onContextProvided,
@@ -44,11 +42,10 @@ export default function MCPChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (mcpServerUrl) {
-      mcpApi.updateConfig({ baseUrl: mcpServerUrl });
-    }
-    mcpApi.setUseMock(useMock);
-  }, [mcpServerUrl, useMock]);
+    const baseUrl = mcpServerUrl || API_CONFIG.baseUrl;
+    mcpApi.updateConfig({ baseUrl });
+    mcpApi.setUseMock(API_CONFIG.useMock);
+  }, [mcpServerUrl]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
