@@ -1,4 +1,4 @@
-Jigsaw Logo
+![Jigsaw Logo](assets/logo_w_text.png)
 
 **From natural language to complete PCB design in minutes, not hours.**
 
@@ -42,7 +42,7 @@ You see the AI reason through each component selection in real-time, just like a
 
 ## Demo
 
-Jigsaw Live Demo
+![Jigsaw Live Demo](assets/liveDemo.gif)
 
 **[View Full Pitch Deck →](https://www.figma.com/slides/94eWyD99wBcK8kr5nobDi2/Jigsaw?node-id=1-510&t=PplOcCx70slVACQC-1)**
 
